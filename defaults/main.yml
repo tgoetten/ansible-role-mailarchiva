@@ -1,0 +1,17 @@
+mailarchiva_download_id: 1989 # see https://mailarchiva.com/downloads
+mailarchiva_download_dir: "/tmp/mailarchiva_dist_v7.6.14"
+
+mailarchiva_heap_memory: '2048m'
+
+mailarchiva_installdir: /opt
+mailarchiva_mailarchiva_home: '{{ mailarchiva_installdir }}/mailarchiva'
+mailarchiva_catalina_base: /var/opt/mailarchiva/tomcat
+mailarchiva_server: '{{ mailarchiva_mailarchiva_home }}/server'
+mailarchiva_webapps: '{{ mailarchiva_catalina_base }}/webapps'
+mailarchiva_autoupdate: '{{ mailarchiva_catalina_base }}/update'
+
+mailarchiva_core_debug_log_files: /var/log/mailarchiva/core/debug
+mailarchiva_main_instance_debug_log_files: /var/log/mailarchiva/ROOT/debug
+mailarchiva_main_instance_audit_log_files: /var/log/mailarchiva/ROOT/audit
+mailarchiva_main_instance_configuration: /etc/opt/mailarchiva/ROOT
+mailarchiva_main_instance_application_data: /var/opt/mailarchiva/ROOT

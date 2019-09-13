@@ -1,0 +1,78 @@
+---
+# Perform fresh installation
+
+- set_fact:
+    mailarchiva_latest_version_number_clean:  "{{ mailarchiva_latest_version_number.stdout | trim }}"
+
+- import_tasks: download.yml
+
+- name: Create directories if they don't exist
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: 0775
+  with_items:
+    - "{{ mailarchiva_mailarchiva_home }}"
+    - "{{ mailarchiva_catalina_base }}"
+    - "{{ mailarchiva_server }}"
+    - "{{ mailarchiva_webapps }}"
+    - "{{ mailarchiva_autoupdate }}"
+    - "{{ mailarchiva_catalina_base }}/logs"
+    - "{{ mailarchiva_catalina_base }}/temp"
+    - "{{ mailarchiva_core_debug_log_files }}"
+    - "{{ mailarchiva_main_instance_debug_log_files }}"
+    - "{{ mailarchiva_main_instance_audit_log_files }}"
+    - "{{ mailarchiva_main_instance_configuration }}"
+    - "{{ mailarchiva_main_instance_application_data }}"
+
+- name: /bin/cp -rf mailarchiva $INSTALLDIR/
+  shell: cp -rf {{ mailarchiva_download_dir }}/mailarchiva {{ mailarchiva_installdir }}
+
+- name: /bin/mv $SERVER/webapps/autoupdate $AUTOUPDATE
+  shell: cp -rf {{ mailarchiva_download_dir }}/mailarchiva/server/webapps/autoupdate {{ mailarchiva_autoupdate }}
+
+- name: /bin/mv $SERVER/webapps/ROOT $WEBAPPS
+  shell: cp -rf {{ mailarchiva_download_dir }}/mailarchiva/server/webapps/ROOT {{ mailarchiva_webapps }}
+
+- name: /bin/mv $SERVER/logs $CATALINA_BASE
+  shell: cp -rf {{ mailarchiva_download_dir }}/mailarchiva/server/logs {{ mailarchiva_catalina_base }}/logs
+
+- name: /bin/mv $SERVER/conf $CATALINA_BASE
+  shell: cp -rf {{ mailarchiva_download_dir }}/mailarchiva/server/conf {{ mailarchiva_catalina_base }}
+
+- name: /bin/mv $SERVER/work $CATALINA_BASE
+  shell: cp -rf {{ mailarchiva_download_dir }}/mailarchiva/server/work {{ mailarchiva_catalina_base }}
+
+- name: Create systemd service for Mailarchiva
+  template:
+    src: mailarchiva.services.j2
+    dest: /lib/systemd/system/mailarchiva.service
+    owner: root
+    group: root
+    mode: 0644
+  notify:
+    - reload systemctl
+
+- name: sed heapsize $MAILARCHIVA_HOME/server/sstemplate > $MAILARCHIVA_HOME/server/startserver
+  shell: sed "s/%heapsize%/{{ mailarchiva_heap_memory }}/g" {{ mailarchiva_server }}/sstemplate > {{ mailarchiva_server }}/startserver
+
+- name: sed heapsize $MAILARCHIVA_HOME/server/profiler/profiletemplate > $MAILARCHIVA_HOME/server/profiler/profile.sh
+  shell: sed "s/%heapsize%/{{ mailarchiva_heap_memory }}/g" {{ mailarchiva_server }}/profiler/profiletemplate > {{ mailarchiva_server }}/profiler/profile.sh
+
+- name: Changing permission of some files, adding "+x"
+  file:
+    dest: "{{ item }}"
+    mode: a+x
+  with_items:
+    - "{{ mailarchiva_server }}/startserver"
+    - "{{ mailarchiva_server }}/profiler/profile.sh"
+
+- name: Register mailarchiva.service and start server
+  service:
+    name: mailarchiva.service
+    state: started
+    enabled: yes
+
+#- import_tasks: cleanup.yml

@@ -1,0 +1,26 @@
+---
+
+- name: instal install install
+  set_fact:
+    mailarchiva_download_dir: "/tmp/mailarchiva_dist_v{{ mailarchiva_latest_version_number_clean }}/"
+
+- name: Check if latest version has been downloaded before
+  stat:
+    path: "/tmp/{{ mailarchiva_latest_version_filename.stdout | trim }}"
+  register: already_downloaded_result
+
+- name: Download Mailarchiva version {{ mailarchiva_latest_version_number_clean }} via SFTP
+  shell: "sshpass -p 'fl0w3r' sftp -r -p enterprise@mailarchiva.com:/{{ mailarchiva_latest_version_filename.stdout | trim }} /tmp"
+  when: already_downloaded_result.stat.exists == False
+
+- name: Check if latest version has already been extracted
+  stat:
+    path: "{{ mailarchiva_download_dir }}"
+  register: already_extracted_result
+
+- name: Unarchive Mailarchiva
+  unarchive:
+    src: "/tmp/{{ mailarchiva_latest_version_filename.stdout | trim }}"
+    dest: "/tmp"
+    remote_src: yes
+  when: already_extracted_result.stat.exists == False

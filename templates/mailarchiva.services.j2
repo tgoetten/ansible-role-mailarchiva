@@ -1,0 +1,16 @@
+[Unit]
+Description=MailArchiva Email Archiving
+After=syslog.target network.target remote-fs.target
+
+[Service]
+Restart=always
+RestartSec=5
+Type=forking
+User=root
+Group=root
+ExecStart={{ mailarchiva_server }}/startserver
+ExecStop={{ mailarchiva_server }}/stopserver
+PIDFile={{ mailarchiva_mailarchiva_home }}/mailarchiva.pid
+
+[Install]
+WantedBy=multi-user.target
