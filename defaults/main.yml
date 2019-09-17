@@ -1,5 +1,6 @@
-mailarchiva_download_id: 1989 # see https://mailarchiva.com/downloads
-mailarchiva_download_dir: "/tmp/mailarchiva_dist_v7.6.14"
+mailarchiva_download_type: "web" # sftp
+mailarchiva_download_url: "https://d3tlkwz0u312l3.cloudfront.net/download?id=1989" #default, fallback url
+mailarchiva_download_version: "7.6.14" #default, fallback version
 
 mailarchiva_heap_memory: '2048m'
 

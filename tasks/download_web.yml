@@ -1,0 +1,60 @@
+---
+
+- name: Ask Mailarchiva.com what's the url to the most recent version
+  shell: wget --user-agent="Mozilla/4.0 (compatible; MSIE 6.0; Windows NT 5.1; SV1)" --no-check-certificate -q -O - https://www.mailarchiva.com/downloads | xmllint --html --xpath '//div/section[1]/table/tr[2]/td/dl/dt/a[1]/@href' - 2>/dev/null | sed -n 's/.*href="\([^"]*\).*/\1/p'
+  register: mailarchivacom_latest_version_url
+  async: 10
+  poll: 5
+  ignore_errors: yes
+
+- name: Update download_url if a newer version is available
+  set_fact:
+    mailarchiva_download_url: "{{ mailarchivacom_latest_version_url }}"
+  when:
+    - mailarchivacom_latest_version_url is defined
+    - mailarchivacom_latest_version_url is not failed
+
+- name: What's the version number of the most recent version
+  shell: wget --no-check-certificate -q -O - https://www.mailarchiva.com/downloads | xmllint --html --xpath '//div/section[1]/table/tr[2]/td/dl/dt/b[1]' - 2>/dev/null | sed -n 's:.*<b>V \(.*\)</b>.*:\1:p'
+  register: mailarchivacom_latest_version_number
+  async: 10
+  poll: 5
+  ignore_errors: yes
+  when:
+    - mailarchivacom_latest_version_url is defined
+
+- name: Update download_version if a newer version is available
+  set_fact:
+    mailarchiva_download_version: "{{ mailarchivacom_latest_version_number }}"
+  when:
+    - mailarchivacom_latest_version_number is defined
+    - mailarchivacom_latest_version_number is not failed
+
+- name: Set extraction directory name
+  set_fact:
+    mailarchiva_download_dir: "/tmp/mailarchiva_dist_v{{ mailarchiva_download_version }}/"
+
+- name: Check if latest version has been downloaded before
+  stat:
+    path: "/tmp/mailarchiva_server_linux_v{{ mailarchiva_download_version }}.tar.gz"
+  register: already_downloaded_result
+
+- name: Download Mailarchiva version {{ mailarchiva_download_version }}
+  get_url:
+    url: "{{ mailarchiva_download_url }}"
+    dest: "/tmp/mailarchiva_server_linux_v{{ mailarchiva_download_version }}.tar.gz"
+  register: download_latest_version_result
+  when:
+    - already_downloaded_result.stat.exists == False
+
+- name: Check if latest version was extracted during a previous run
+  stat:
+    path: "{{ mailarchiva_download_dir }}"
+  register: already_extracted_result
+
+- name: Unarchive Mailarchiva
+  unarchive:
+    src: "/tmp/mailarchiva_server_linux_v{{ mailarchiva_download_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+  when: already_extracted_result.stat.exists == False

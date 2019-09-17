@@ -1,26 +1,47 @@
 ---
 
-- name: Ask Mailarchiva, what's the latest version available
-  shell: echo 'ls -t mailarchiva_server_linux*' | sshpass -p fl0w3r sftp -oBatchMode=no enterprise@mailarchiva.com | grep -v "sftp>" | head -n1
-  register: mailarchiva_latest_version_filename
-  changed_when: false
-
-- name: Extract the version to later determine if the version already installed needs to be updated
-  shell: echo "{{ mailarchiva_latest_version_filename.stdout }}" | sed -e "s/^mailarchiva_server_linux_v//" -e "s///" | sed -e "s/.tar.gz//" -e "s///"
-  register: mailarchiva_latest_version_number
-  changed_when: false
-
 - name: Check if Mailarchiva is already installed on the remote host
   stat:
     path: /var/opt/mailarchiva/tomcat/webapps/ROOT/WEB-INF/classes/version.conf
   register: stat_result
 
-- debug:
-#    msg: "{{ mailarchiva_download_dir }}/mailarchiva/server/webapps/ROOT"
-    var: stat_result.stat
+- name: Download, Install and configure Mailarchiva
+  block:
+  - import_tasks: download_web.yml
+    when:
+      - mailarchiva_download_type == "web"
+  - import_tasks: download_sftp.yml
+    when:
+      - mailarchiva_download_type == "sftp"
+  - import_tasks: install.yml
+  when:
+    - stat_result.stat.exists == False
 
-- import_tasks: install.yml
+- name: Update
+  block:
+  - name: Extract the version to later determine if the version already installed needs to be updated
+    slurp:
+      src: /var/opt/mailarchiva/tomcat/webapps/ROOT/WEB-INF/classes/version.conf
+    register: mailarchiva_current_version_number
+  - set_fact:
+      mailarchiva_current_version_number_clean: "{{ mailarchiva_current_version_number['content'] | b64decode | trim }}"
+  - set_fact:
+      current_version_needs_to_be_udapted : "{{ 'False' if mailarchiva_current_version_number_clean == mailarchiva_latest_version_number_clean else 'True' }}"
+
+  - block:
+      - name: "End play if nothing to upgrade"
+        debug:
+          msg: "nothing to upgrade, ending play"
+
+      - meta: end_host
+    when:
+      - current_version_needs_to_be_udapted == False
+
+  - import_tasks: update_web.yml
+    when:
+      - mailarchiva_download_type == "web"
+  - import_tasks: update_sftp.yml
+    when:
+      - mailarchiva_download_type == "sftp"
+
   when: stat_result.stat.exists == False
-
-- import_tasks: update.yml
-  when: stat_result.stat.exists == True

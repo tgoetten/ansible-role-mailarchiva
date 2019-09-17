@@ -1,0 +1,34 @@
+- name: Ask Mailarchiva, what's the latest version available
+  shell: echo 'ls -t mailarchiva_server_linux*' | sshpass -p fl0w3r sftp -oBatchMode=no enterprise@mailarchiva.com | grep -v "sftp>" | head -n1
+  register: mailarchiva_latest_version_filename
+  changed_when: false
+
+- name: Extract the version to later determine if the version already installed needs to be updated
+  shell: echo "{{ mailarchiva_latest_version_filename.stdout }}" | sed -e "s/^mailarchiva_server_linux_v//" -e "s///" | sed -e "s/.tar.gz//" -e "s///"
+  register: mailarchiva_latest_version_number
+  changed_when: false
+
+- set_fact:
+    mailarchiva_latest_version_number_clean:  "{{ mailarchiva_latest_version_number.stdout | trim }}"
+
+- name: Check if latest version has been downloaded before
+  stat:
+    path: "/tmp/mailarchiva_server_linux_v{{ mailarchiva_download_version }}.tar.gz"
+  register: already_downloaded_result
+
+- name: Download Mailarchiva version {{ mailarchiva_latest_version_number_clean }} via SFTP
+  shell: "sshpass -p 'fl0w3r' sftp -r -p enterprise@mailarchiva.com:/{{ mailarchiva_latest_version_filename.stdout | trim }} /tmp"
+  when:
+    - already_downloaded_result.stat.exists == False
+
+- name: Check if latest version has already been extracted
+  stat:
+    path: "{{ mailarchiva_download_dir }}"
+  register: already_extracted_result
+
+- name: Unarchive Mailarchiva
+  unarchive:
+    src: "/tmp/mailarchiva_server_linux_v{{ mailarchiva_download_version }}.tar.gz"
+    dest: "/tmp"
+    remote_src: yes
+  when: already_extracted_result.stat.exists == False
